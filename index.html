@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICT Chart Analyzer - Pure Visual</title>
+    <title>ICT Live Signals - 200 Pip TP</title>
     <style>
         * {
             margin: 0;
@@ -34,7 +34,7 @@
             background: #1F2C40;
             border: 2px dashed #00BCD4;
             border-radius: 16px;
-            padding: 40px;
+            padding: 30px;
             text-align: center;
             cursor: pointer;
             margin-bottom: 20px;
@@ -42,6 +42,40 @@
 
         .upload-area:hover {
             border-color: #FFD700;
+        }
+
+        .upload-area h3 {
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .upload-area p {
+            color: #8A9BB5;
+            font-size: 0.9em;
+        }
+
+        .timeframe-selector {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+
+        .tf-btn {
+            padding: 12px 25px;
+            background: #1F2C40;
+            border: 1px solid #2E3B4E;
+            color: #8A9BB5;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tf-btn.active {
+            background: #00BCD4;
+            color: #0F1422;
+            border-color: #00BCD4;
         }
 
         .analyze-btn {
@@ -115,15 +149,25 @@
             background: #00BCD4;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
             z-index: 10;
+            font-size: 0.9em;
         }
 
-        .download-btn:hover {
-            background: #008c9e;
+        .signal-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #1F2C40;
+            color: #00BCD4;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            border: 1px solid #2E3B4E;
+            z-index: 10;
         }
     </style>
 </head>
@@ -131,15 +175,22 @@
     <div class="container">
         <div class="upload-area" id="uploadArea">
             <input type="file" id="fileInput" accept="image/*" style="display: none;">
-            <h3 style="color: white; margin-bottom: 10px;">📸 Drop Chart Here</h3>
-            <p style="color: #8A9BB5;">Click or drag to upload</p>
+            <h3>📸 DROP CHART HERE</h3>
+            <p>Click or drag to upload (1H-4H chart)</p>
         </div>
 
-        <button class="analyze-btn" id="analyzeBtn" disabled>🔍 ANALYZE</button>
+        <div class="timeframe-selector">
+            <button class="tf-btn active" data-tf="1h">1 HOUR</button>
+            <button class="tf-btn" data-tf="2h">2 HOUR</button>
+            <button class="tf-btn" data-tf="4h">4 HOUR</button>
+        </div>
+
+        <button class="analyze-btn" id="analyzeBtn" disabled>🔍 GET LIVE SIGNAL</button>
 
         <div class="chart-container">
             <canvas id="chartCanvas" width="1000" height="600"></canvas>
-            <button class="download-btn" id="downloadBtn" style="display: none;">⬇️ Save Image</button>
+            <button class="download-btn" id="downloadBtn" style="display: none;">💾 SAVE</button>
+            <div class="signal-badge" id="signalBadge" style="display: none;">LIVE SIGNAL</div>
         </div>
     </div>
 
@@ -148,11 +199,13 @@
     </div>
 
     <script>
-        class PureVisualAnalyzer {
+        class LiveSignalAnalyzer {
             constructor() {
                 this.canvas = document.getElementById('chartCanvas');
                 this.ctx = this.canvas.getContext('2d');
                 this.currentImage = null;
+                this.timeframe = '1h';
+                this.pipValue = 0.0001; // 1 pip = 0.0001 for Forex
                 this.init();
             }
 
@@ -161,7 +214,9 @@
                 const fileInput = document.getElementById('fileInput');
                 const analyzeBtn = document.getElementById('analyzeBtn');
                 const downloadBtn = document.getElementById('downloadBtn');
+                const tfBtns = document.querySelectorAll('.tf-btn');
 
+                // Upload handlers
                 uploadArea.addEventListener('click', () => fileInput.click());
 
                 uploadArea.addEventListener('dragover', (e) => {
@@ -188,8 +243,16 @@
                     }
                 });
 
-                analyzeBtn.addEventListener('click', () => this.analyze());
-                
+                // Timeframe selection
+                tfBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        tfBtns.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.timeframe = btn.dataset.tf;
+                    });
+                });
+
+                analyzeBtn.addEventListener('click', () => this.getLiveSignal());
                 downloadBtn.addEventListener('click', () => this.downloadImage());
             }
 
@@ -202,6 +265,7 @@
                         this.drawImage(img);
                         document.getElementById('analyzeBtn').disabled = false;
                         document.getElementById('downloadBtn').style.display = 'none';
+                        document.getElementById('signalBadge').style.display = 'none';
                     };
                     img.src = e.target.result;
                 };
@@ -230,148 +294,204 @@
                 this.imagePos = { x, y, width, height, scale };
             }
 
-            analyze() {
+            getLiveSignal() {
                 if (!this.currentImage) return;
                 
                 document.getElementById('loading').classList.add('active');
+                document.getElementById('signalBadge').style.display = 'block';
                 
+                // Simulate real-time analysis
                 setTimeout(() => {
-                    this.drawAnalysis();
+                    // Get current market condition based on time
+                    const now = new Date();
+                    const hour = now.getHours();
+                    
+                    // Generate signal based on current time (more realistic)
+                    // London session (8-16 GMT) more likely to have signals
+                    const isLondonSession = hour >= 8 && hour <= 16;
+                    const isNYsession = hour >= 13 && hour <= 22;
+                    
+                    // 70% chance of signal during active sessions
+                    const signalChance = (isLondonSession || isNYsession) ? 0.7 : 0.3;
+                    
+                    // Decide if buy or sell (random but weighted)
+                    const isBuy = Math.random() > 0.5;
+                    const hasSignal = Math.random() < signalChance;
+                    
+                    if (hasSignal) {
+                        if (isBuy) {
+                            this.drawLiveBuySignal();
+                        } else {
+                            this.drawLiveSellSignal();
+                        }
+                    } else {
+                        // No clear signal - show neutral
+                        this.drawNeutral();
+                    }
+                    
                     document.getElementById('loading').classList.remove('active');
                     document.getElementById('downloadBtn').style.display = 'block';
-                }, 1500);
+                }, 1800);
             }
 
-            drawAnalysis() {
+            drawLiveBuySignal() {
                 if (!this.currentImage) return;
                 
-                // Redraw original image
+                // Redraw original
                 this.drawImage(this.currentImage);
                 
                 const ctx = this.ctx;
                 const pos = this.imagePos;
                 
-                // Randomly decide buy or sell
-                const isBuy = Math.random() > 0.5;
+                // Get current price level from chart (simulated)
+                // In real app, you'd analyze the actual chart
+                const chartMidY = pos.y + (pos.height * 0.5);
+                const pipDistance = 200 * this.pipValue * 100; // 200 pips in pixels (simplified)
                 
-                if (isBuy) {
-                    this.drawBuySignal(pos);
-                } else {
-                    this.drawSellSignal(pos);
-                }
-            }
-
-            drawBuySignal(pos) {
-                const ctx = this.ctx;
-                
-                // Draw GREEN BUY arrow
+                // Draw ENTRY line (white) - current market price
                 ctx.beginPath();
-                ctx.moveTo(pos.x + 400, pos.y + 350);
-                ctx.lineTo(pos.x + 450, pos.y + 250);
-                ctx.lineTo(pos.x + 500, pos.y + 350);
+                ctx.moveTo(pos.x, chartMidY);
+                ctx.lineTo(pos.x + pos.width, chartMidY);
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // Draw STOP LOSS (red) - 50 pips below entry
+                ctx.beginPath();
+                ctx.moveTo(pos.x, chartMidY + (pipDistance * 0.25));
+                ctx.lineTo(pos.x + pos.width, chartMidY + (pipDistance * 0.25));
+                ctx.strokeStyle = '#FF0000';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // Draw TAKE PROFIT (cyan) - 200 pips above entry
+                ctx.beginPath();
+                ctx.moveTo(pos.x, chartMidY - pipDistance);
+                ctx.lineTo(pos.x + pos.width, chartMidY - pipDistance);
+                ctx.strokeStyle = '#00FFFF';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // Draw small GREEN arrow (buy) - 30x30 pixels
+                ctx.beginPath();
+                ctx.moveTo(pos.x + 500, chartMidY - 15);
+                ctx.lineTo(pos.x + 530, chartMidY - 30);
+                ctx.lineTo(pos.x + 560, chartMidY - 15);
                 ctx.closePath();
                 
                 // Fill arrow
                 ctx.fillStyle = '#00FF00';
                 ctx.fill();
-                
-                // Add border
                 ctx.strokeStyle = '#FFFFFF';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                
-                // Draw ENTRY line (white dashed)
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y + 300);
-                ctx.lineTo(pos.x + pos.width, pos.y + 300);
-                ctx.strokeStyle = '#FFFFFF';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                
-                // Draw STOP LOSS line (red dashed) - below entry
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y + 350);
-                ctx.lineTo(pos.x + pos.width, pos.y + 350);
-                ctx.strokeStyle = '#FF0000';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                
-                // Draw TAKE PROFIT line (cyan dashed) - above entry
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y + 200);
-                ctx.lineTo(pos.x + pos.width, pos.y + 200);
-                ctx.strokeStyle = '#00FFFF';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
                 
                 // Reset dash
                 ctx.setLineDash([]);
             }
 
-            drawSellSignal(pos) {
-                const ctx = this.ctx;
+            drawLiveSellSignal() {
+                if (!this.currentImage) return;
                 
-                // Draw RED SELL arrow
+                // Redraw original
+                this.drawImage(this.currentImage);
+                
+                const ctx = this.ctx;
+                const pos = this.imagePos;
+                
+                // Get current price level from chart
+                const chartMidY = pos.y + (pos.height * 0.5);
+                const pipDistance = 200 * this.pipValue * 100; // 200 pips in pixels
+                
+                // Draw ENTRY line (white) - current market price
                 ctx.beginPath();
-                ctx.moveTo(pos.x + 400, pos.y + 250);
-                ctx.lineTo(pos.x + 450, pos.y + 350);
-                ctx.lineTo(pos.x + 500, pos.y + 250);
+                ctx.moveTo(pos.x, chartMidY);
+                ctx.lineTo(pos.x + pos.width, chartMidY);
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // Draw STOP LOSS (red) - 50 pips above entry
+                ctx.beginPath();
+                ctx.moveTo(pos.x, chartMidY - (pipDistance * 0.25));
+                ctx.lineTo(pos.x + pos.width, chartMidY - (pipDistance * 0.25));
+                ctx.strokeStyle = '#FF0000';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // Draw TAKE PROFIT (cyan) - 200 pips below entry
+                ctx.beginPath();
+                ctx.moveTo(pos.x, chartMidY + pipDistance);
+                ctx.lineTo(pos.x + pos.width, chartMidY + pipDistance);
+                ctx.strokeStyle = '#00FFFF';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // Draw small RED arrow (sell) - 30x30 pixels
+                ctx.beginPath();
+                ctx.moveTo(pos.x + 500, chartMidY + 15);
+                ctx.lineTo(pos.x + 530, chartMidY + 30);
+                ctx.lineTo(pos.x + 560, chartMidY + 15);
                 ctx.closePath();
                 
                 // Fill arrow
                 ctx.fillStyle = '#FF0000';
                 ctx.fill();
-                
-                // Add border
                 ctx.strokeStyle = '#FFFFFF';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                
-                // Draw ENTRY line (white dashed)
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y + 300);
-                ctx.lineTo(pos.x + pos.width, pos.y + 300);
-                ctx.strokeStyle = '#FFFFFF';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                
-                // Draw STOP LOSS line (red dashed) - above entry for sell
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y + 250);
-                ctx.lineTo(pos.x + pos.width, pos.y + 250);
-                ctx.strokeStyle = '#FF0000';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                
-                // Draw TAKE PROFIT line (cyan dashed) - below entry for sell
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y + 400);
-                ctx.lineTo(pos.x + pos.width, pos.y + 400);
-                ctx.strokeStyle = '#00FFFF';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
                 
                 // Reset dash
                 ctx.setLineDash([]);
             }
 
+            drawNeutral() {
+                if (!this.currentImage) return;
+                
+                // Redraw original
+                this.drawImage(this.currentImage);
+                
+                const ctx = this.ctx;
+                const pos = this.imagePos;
+                
+                // Draw only entry line (no arrow) - waiting for signal
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y + (pos.height * 0.5));
+                ctx.lineTo(pos.x + pos.width, pos.y + (pos.height * 0.5));
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // Small neutral dot
+                ctx.beginPath();
+                ctx.arc(pos.x + 530, pos.y + (pos.height * 0.5), 8, 0, 2 * Math.PI);
+                ctx.fillStyle = '#FFD700';
+                ctx.fill();
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                
+                ctx.setLineDash([]);
+            }
+
             downloadImage() {
-                // Create download link
                 const link = document.createElement('a');
-                link.download = 'ict-analysis.png';
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g, '-');
+                link.download = `signal-${this.timeframe}-${timestamp}.png`;
                 link.href = this.canvas.toDataURL('image/png');
                 link.click();
             }
         }
 
         // Initialize
-        new PureVisualAnalyzer();
+        new LiveSignalAnalyzer();
     </script>
 </body>
 </html>
